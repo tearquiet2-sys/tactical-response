@@ -176,3 +176,20 @@ button.lang.on { border-color: var(--amber); color: var(--amber); }
 .aitem { border-top: 2px solid transparent; transition: border-color .15s; } .aitem:hover { border-top-color: rgba(232,176,74,0.6); }
 .mrow { transition: background .12s; }
 .lgrid .small { margin: 6px 2px 0; }
+/* ---------- operation modes */
+.mchips { display: flex; flex-wrap: wrap; gap: 8px; }
+.mchip { position: relative; flex: 1 1 110px; min-width: 110px; padding: 9px 12px; background: var(--panel2); border: 1px solid var(--line); cursor: pointer; transition: border-color .12s, background .12s, transform .12s; }
+.mchip:hover { border-color: rgba(232, 176, 74, 0.5); transform: translateY(-1px); }
+.mchip.sel { border-color: var(--amber); background: rgba(232, 176, 74, 0.12); }
+.mchip.locked { opacity: .4; }
+.mchip b { display: block; font-size: 12px; letter-spacing: .14em; }
+.mchip span { display: block; font-size: 11px; color: var(--amber); margin-top: 3px; }
+.mchip i.grade { position: absolute; top: 6px; right: 8px; font-style: normal; font-size: 13px; }
+.mchip.dly { border-color: rgba(111, 179, 222, 0.5); } .mchip.dly b { color: var(--blue); } .mchip.dly.sel { border-color: var(--blue); background: rgba(111, 179, 222, 0.12); }
+.mdesc { font-size: 13px; line-height: 1.45; margin-top: 10px; color: var(--text); min-height: 38px; }
+.mtag { display: inline-block; color: var(--amber); letter-spacing: .16em; font-size: 13px; }
+.mtag.big { margin-top: 10px; font-size: 16px; padding: 4px 14px; border: 1px solid rgba(232, 176, 74, 0.6); }
+.pausebox .mtag { margin: -6px 0 14px; }
+.main-nav button.daily { color: var(--blue); }
+.main-nav button.daily:hover { border-left-color: var(--blue); background: linear-gradient(90deg, rgba(111, 179, 222, 0.16), transparent); }
+em.dmark { font-style: normal; color: var(--blue); font-size: 12px; }

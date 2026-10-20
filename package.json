@@ -1,7 +1,7 @@
 {
   "name": "tactical-response",
   "productName": "Tactical Response",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Tactical Response - 2D top-down tactical police shooter",
   "main": "main.js",
   "scripts": {

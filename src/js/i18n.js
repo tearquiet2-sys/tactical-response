@@ -2,7 +2,7 @@
 (function (TR) {
   const en = {
     // ---------- menu
-    'menu.kicker': 'GREYBRIDGE RESPONSE UNIT', 'menu.sub': '2D TACTICAL POLICE OPERATIONS · v0.5',
+    'menu.kicker': 'GREYBRIDGE RESPONSE UNIT', 'menu.sub': '2D TACTICAL POLICE OPERATIONS · v0.6',
     'menu.resume': 'RESUME OPERATION', 'menu.continue': 'CONTINUE', 'menu.start': 'START OPERATION', 'menu.campaign': 'CAMPAIGN',
     'menu.operators': 'OPERATORS', 'menu.armory': 'ARMORY', 'menu.training': 'TRAINING', 'menu.settings': 'SETTINGS', 'menu.exit': 'EXIT',
     'menu.foot': 'Greybridge City · Black Veil investigation · Case file 2026-GRU-0117', 'menu.resumeSub': 'Mission {0} · {1}',
@@ -160,7 +160,7 @@
   };
 
   const tr = {
-    'menu.kicker': 'GREYBRIDGE MÜDAHALE BİRİMİ', 'menu.sub': '2D TAKTİK POLİS OPERASYONLARI · v0.5',
+    'menu.kicker': 'GREYBRIDGE MÜDAHALE BİRİMİ', 'menu.sub': '2D TAKTİK POLİS OPERASYONLARI · v0.6',
     'menu.resume': 'OPERASYONA DEVAM ET', 'menu.continue': 'DEVAM ET', 'menu.start': 'OPERASYONU BAŞLAT', 'menu.campaign': 'SEFER',
     'menu.operators': 'OPERATÖRLER', 'menu.armory': 'CEPHANELİK', 'menu.training': 'EĞİTİM', 'menu.settings': 'AYARLAR', 'menu.exit': 'ÇIKIŞ',
     'menu.foot': 'Greybridge Şehri · Black Veil soruşturması · Dosya 2026-GRU-0117', 'menu.resumeSub': 'Görev {0} · {1}', 'menu.level': 'SEVİYE', 'menu.lang': 'DİL',
@@ -303,7 +303,7 @@
   };
 
   const de = {
-    'menu.kicker': 'GREYBRIDGE EINSATZEINHEIT', 'menu.sub': '2D TAKTISCHE POLIZEIEINSÄTZE · v0.5',
+    'menu.kicker': 'GREYBRIDGE EINSATZEINHEIT', 'menu.sub': '2D TAKTISCHE POLIZEIEINSÄTZE · v0.6',
     'menu.resume': 'EINSATZ FORTSETZEN', 'menu.continue': 'WEITER', 'menu.start': 'EINSATZ STARTEN', 'menu.campaign': 'KAMPAGNE',
     'menu.operators': 'OPERATOREN', 'menu.armory': 'WAFFENKAMMER', 'menu.training': 'TRAINING', 'menu.settings': 'EINSTELLUNGEN', 'menu.exit': 'BEENDEN',
     'menu.foot': 'Greybridge City · Black-Veil-Ermittlung · Akte 2026-GRU-0117', 'menu.resumeSub': 'Mission {0} · {1}', 'menu.level': 'STUFE', 'menu.lang': 'SPRACHE',
@@ -445,7 +445,7 @@
   };
 
   const es = {
-    'menu.kicker': 'UNIDAD DE RESPUESTA DE GREYBRIDGE', 'menu.sub': 'OPERACIONES POLICIALES TÁCTICAS 2D · v0.5',
+    'menu.kicker': 'UNIDAD DE RESPUESTA DE GREYBRIDGE', 'menu.sub': 'OPERACIONES POLICIALES TÁCTICAS 2D · v0.6',
     'menu.resume': 'REANUDAR OPERACIÓN', 'menu.continue': 'CONTINUAR', 'menu.start': 'INICIAR OPERACIÓN', 'menu.campaign': 'CAMPAÑA',
     'menu.operators': 'OPERADORES', 'menu.armory': 'ARMERÍA', 'menu.training': 'ENTRENAMIENTO', 'menu.settings': 'AJUSTES', 'menu.exit': 'SALIR',
     'menu.foot': 'Greybridge City · Investigación Black Veil · Expediente 2026-GRU-0117', 'menu.resumeSub': 'Misión {0} · {1}', 'menu.level': 'NIVEL', 'menu.lang': 'IDIOMA',

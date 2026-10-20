@@ -7,7 +7,7 @@
   const LOGO = '<svg class="logo" viewBox="0 0 64 64" aria-hidden="true"><path d="M32 4 L56 12 L54 36 Q50 52 32 60 Q14 52 10 36 L8 12 Z" fill="#1c232c" stroke="#e8b04a" stroke-width="3"/><circle cx="32" cy="31" r="11" fill="none" stroke="#d9dcdf" stroke-width="3"/><path d="M32 13v10M32 39v10M14 31h10M40 31h10" stroke="#d9dcdf" stroke-width="3"/><circle cx="32" cy="31" r="2.6" fill="#d9544a"/></svg>';
 
   const UI = {
-    root: null, current: null, selMission: 1,
+    root: null, current: null, selMission: 1, selMode: 'standard',
     init(app) {
       this.app = app;
       this.root = document.getElementById('ui');
@@ -65,7 +65,9 @@
           const next = TR.Missions.find((m) => m.playable && !S.data.completed[m.id] && S.unlockedMission(m.id)) || TR.Missions[0];
           this.selMission = next.id; this.show('campaign'); break;
         }
-        case 'mission': this.selMission = +v; this.show('campaign'); break;
+        case 'mission': if (this.selMission !== +v) this.selMode = 'standard'; this.selMission = +v; this.show('campaign'); break;
+        case 'mode': if (TR.Modes.unlocked(v, this.selMission)) { this.selMode = v; this.show('campaign'); } else this.flash(t('mode.locked')); break;
+        case 'daily': { const dl = TR.Modes.daily(); this.selMission = dl.mission.id; this.selMode = 'daily'; this.show('campaign'); break; }
         case 'toLoadout': this.show('loadout'); break;
         case 'slot': {
           const [slot, id] = v.split(':');
@@ -78,7 +80,7 @@
           const m = S.data.loadout.mods[wid] = S.data.loadout.mods[wid] || {};
           m[mod] = !m[mod]; S.save(); this.show('loadout'); break;
         }
-        case 'deploy': app.startMission(this.selMission); break;
+        case 'deploy': app.startMission(this.selMission, null, this.selMode); break;
         case 'buy': {
           const [id, price] = v.split(':');
           if (S.buy(id, +price)) { TR.Audio.play('uiConfirm'); this.show('armory'); }
@@ -93,13 +95,13 @@
         case 'resetSave': if (confirm(t('set.resetQ'))) { S.reset(); S.data.settings.lang = TR.L.lang; S.save(); this.show('main'); } break;
         case 'exit': app.autosave(); if (window.desktop) window.desktop.quit(); else window.close(); break;
         case 'resume': app.resume(); break;
-        case 'restart': app.startMission(app.game.mission.id); break;
+        case 'restart': app.startMission(app.game.mission.id, null, app.game.mode.id); break;
         case 'abort': app.abort(); break;
         case 'saveQuit': app.saveAndQuit(); break;
         case 'pauseControls': this.show('training', { fromPause: true }); break;
         case 'backPause': this.show('pause'); break;
         case 'resultContinue': app.toMenu('campaign'); break;
-        case 'resultRetry': app.startMission(this.lastResult.mission.id); break;
+        case 'resultRetry': app.startMission(this.lastResult.mission.id, null, this.lastResult.mode.id); break;
       }
     },
     flash(msg) {
@@ -147,6 +149,29 @@
       gm.doors.forEach((d) => { if (d.locked) { g.fillStyle = '#d9544a'; g.beginPath(); g.arc(ox + d.cx * ts, oy + d.cy * ts, 3, 0, 7); g.fill(); } });
     },
 
+    dailyButton() {
+      const dl = TR.Modes.daily();
+      const rec = S.data.daily && S.data.daily.key === dl.key ? S.data.daily : null;
+      const sub = t('menu.dailySub', dl.mission.code + ' ' + dl.mission.name, TR.Modes.name(dl.base)) + (rec ? ' · ' + t('menu.dailyBest', rec.grade + ' ' + U.fmtNum(rec.score)) : '');
+      return `<button class="daily" data-a="daily">${t('menu.daily')}<small>${esc(sub)}</small></button>`;
+    },
+    modePicker(m) {
+      const dl = TR.Modes.daily();
+      const ids = TR.Modes.ORDER.concat(dl.mission.id === m.id ? ['daily'] : []);
+      if (!ids.includes(this.selMode) || !TR.Modes.unlocked(this.selMode, m.id)) this.selMode = 'standard';
+      const chips = ids.map((id) => {
+        const md = TR.Modes.resolve(id, m);
+        const open = TR.Modes.unlocked(id, m.id);
+        const best = id === 'daily' ? (S.data.daily && S.data.daily.key === dl.key ? S.data.daily : null) : TR.Modes.best(m.id, id);
+        return `<div class="mchip ${this.selMode === id ? 'sel' : ''} ${open ? '' : 'locked'} ${id === 'daily' ? 'dly' : ''}" data-a="mode" data-v="${id}">
+          <b>${TR.Modes.name(id)}</b><span>${open ? (md.mult > 1 ? t('mode.mult', md.mult) : '&nbsp;') : '&#128274;'}</span>
+          ${best ? `<i class="grade g-${best.grade}">${best.grade}</i>` : ''}</div>`;
+      }).join('');
+      const cur = TR.Modes.resolve(this.selMode, m);
+      const descArg = this.selMode === 'timecrit' ? U.fmtTime(cur.timeLimit) : this.selMode === 'daily' ? TR.Modes.name(cur.base) + (cur.timeLimit ? ' ' + U.fmtTime(cur.timeLimit) : '') : '';
+      return `<div class="lbl">${t('mode.title')}</div><div class="mchips">${chips}</div>
+        <div class="mdesc">${esc(t('mode.d.' + this.selMode, descArg))}${!TR.Modes.unlocked('lonewolf', m.id) ? ' <span class="dim">— ' + t('mode.locked') + '</span>' : ''}</div>`;
+    },
     statBars(def) {
       if (def.isShield) return `<div class="wstats"><div>${t('lo.shieldDesc')}</div></div>`;
       const row = (label, k) => `<div class="srow"><span>${label}</span><div class="sbar"><i style="width:${Math.round(U.clamp(k, 0.05, 1) * 100)}%"></i></div></div>`;
@@ -175,6 +200,7 @@
             ${rm ? `<button class="resume" data-a="resumeOp">${t('menu.resume')}<small>${t('menu.resumeSub', rm.code + ' ' + rm.name, U.fmtTime(r.time))}</small></button>` : ''}
             <button data-a="continue">${hasProgress ? t('menu.continue') : t('menu.start')}</button>
             <button data-a="nav" data-v="campaign">${t('menu.campaign')}</button>
+            ${this.dailyButton()}
             <button data-a="nav" data-v="operators">${t('menu.operators')}</button>
             <button data-a="nav" data-v="armory">${t('menu.armory')}</button>
             <button data-a="nav" data-v="training">${t('menu.training')}</button>
@@ -194,7 +220,7 @@
           const unlocked = q.playable && S.unlockedMission(q.id);
           const cls = ['mrow', q.id === m.id ? 'sel' : '', !q.playable ? 'future' : !unlocked ? 'locked' : ''].join(' ');
           return `<div class="${cls}" data-a="mission" data-v="${q.id}">
-            <span class="mcode">${q.code}</span><span class="mname">${q.name}</span>
+            <span class="mcode">${q.code}</span><span class="mname">${q.name}${q.playable && TR.Modes.daily().mission.id === q.id ? ' <em class="dmark">&#9733;</em>' : ''}</span>
             <span class="mstate">${done ? '<b class="grade g-' + done.grade + '">' + done.grade + '</b>' : !q.playable ? t('camp.classified') : !unlocked ? t('camp.locked') : ''}</span>
           </div>`;
         }).join('');
@@ -216,8 +242,9 @@
             <canvas id="preview" width="640" height="360"></canvas>
             <div class="intel"><div class="lbl">${t('camp.intel')}</div><ul>${m.intel.map((i) => '<li>' + esc(i) + '</li>').join('')}</ul></div>
             <div class="roe">${t('camp.roe')}</div>
+            ${unlocked ? this.modePicker(m) : ''}
             <div class="brow">
-              <span class="dim">${t('camp.reward')} $${U.fmtNum(m.reward)} · ${t('camp.par')} ${U.fmtTime(m.parTime)}</span>
+              <span class="dim">${t('camp.reward')} $${U.fmtNum(Math.round(m.reward * TR.Modes.resolve(this.selMode, m).mult / 50) * 50)} · ${t('camp.par')} ${U.fmtTime(m.parTime)}</span>
               <button class="primary ${unlocked ? '' : 'disabled'}" data-a="toLoadout">${unlocked ? t('camp.toLoadout') : t('camp.needPrev')}</button>
             </div>
           </div>`;
@@ -253,7 +280,7 @@
         const smods = modRow(sw, ['suppressor', 'laser']);
         const tacSel = D.tactical[L.tactical], gadSel = D.gadget[L.gadget] || D.gadget.lockpick, headSel = D.headgear[L.headgear] || D.headgear.helmet;
         return `<div class="screen loadout">
-          <div class="shead"><button class="back" data-a="nav" data-v="campaign">${t('briefing')}</button><h3>${t('lo.title')} · ${t('camp.mission')} ${m.code} ${m.name}</h3><span class="credits big">$${U.fmtNum(S.data.credits)}</span></div>
+          <div class="shead"><button class="back" data-a="nav" data-v="campaign">${t('briefing')}</button><h3>${t('lo.title')} · ${t('camp.mission')} ${m.code} ${m.name} · <span class="mtag">${TR.Modes.label(TR.Modes.resolve(this.selMode, m))}</span></h3><span class="credits big">$${U.fmtNum(S.data.credits)}</span></div>
           <div class="lgrid">
             <section><div class="lbl">${t('lo.primary')}</div><div class="opts">${prim}</div>
               <div class="wdetail"><div class="wname">${esc(pw.name)}</div><div class="dim">${esc(pw.desc)}</div>${this.statBars(pw)}<div class="mods">${mods}</div></div></section>
@@ -270,7 +297,7 @@
               <div class="lbl">${t('lo.gadget')}</div><div class="opts">${group('gadget', D.gadget)}</div>
               <div class="dim small">${esc(gadSel.desc)}</div></section>
           </div>
-          <div class="deploybar"><div class="dim">${t('lo.team')}</div>
+          <div class="deploybar"><div class="dim">${TR.Modes.resolve(this.selMode, m).noSquad ? t('hud.solo') : t('lo.team')}</div>
           <button class="primary big" data-a="deploy">${t('lo.deploy')}</button></div>
         </div>`;
       },
@@ -341,7 +368,7 @@
 
       pause() {
         const g = this.app.game;
-        return `<div class="pausebox"><div class="kicker">${t('pause.kicker')}</div><h2>${g.mission.name}</h2>
+        return `<div class="pausebox"><div class="kicker">${t('pause.kicker')}</div><h2>${g.mission.name}</h2><div class="mtag">${TR.Modes.label(g.mode)}</div>
           <button data-a="resume">${t('pause.resume')}</button><button data-a="restart">${t('pause.restart')}</button>
           <button data-a="pauseControls">${t('pause.controls')}</button><button data-a="nav" data-v="settings">${t('pause.settings')}</button>
           <button data-a="saveQuit">${t('pause.quit')}</button>
@@ -350,7 +377,7 @@
 
       deploy(arg) {
         const m = arg.m || arg;
-        return `<div class="deploy"><div class="kicker">${arg.resume ? t('deploy.resume') : t('deploy.kicker')}</div><h1>${m.name}</h1><div class="bloc">${esc(m.location)} · ${m.time}</div><div class="loadbar"><i></i></div></div>`;
+        return `<div class="deploy"><div class="kicker">${arg.resume ? t('deploy.resume') : t('deploy.kicker')}</div><h1>${m.name}</h1><div class="bloc">${esc(m.location)} · ${m.time}</div>${arg.mode && arg.mode.id !== 'standard' ? `<div class="mtag big">${TR.Modes.label(arg.mode)}</div>` : ''}<div class="loadbar"><i></i></div></div>`;
       },
 
       result(r) {
@@ -358,7 +385,7 @@
         const tb = r.table;
         const lines = r.lines.map((l) => `<div class="rline ${l.penalty ? 'pen' : ''}"><span>${esc(l.label)}</span><b>${l.value > 0 ? '+' : ''}${U.fmtNum(l.value)}</b></div>`).join('');
         return `<div class="screen result">
-          <div class="rhead ${r.success ? 'ok' : 'fail'}"><div class="kicker">${t('camp.mission')} ${r.mission.code} · ${r.mission.name}</div>
+          <div class="rhead ${r.success ? 'ok' : 'fail'}"><div class="kicker">${t('camp.mission')} ${r.mission.code} · ${r.mission.name}${r.mode.id !== 'standard' ? ' · ' + TR.Modes.label(r.mode) : ''}</div>
             <h1>${r.success ? t('res.complete') : t('res.failed')}</h1><div class="dim">${esc(r.reason || '')}</div></div>
           <div class="rgrid">
             <section><div class="lbl">${t('res.objectives')}</div>

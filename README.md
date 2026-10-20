@@ -6,7 +6,7 @@
 
 **Plan the entry. Control the scene. Bring everyone home.**
 
-![Version](https://img.shields.io/badge/version-0.5.0-c8a24a)
+![Version](https://img.shields.io/badge/version-0.6.0-c8a24a)
 ![Platform](https://img.shields.io/badge/platform-Windows%20x64-2b2f36)
 ![Engine](https://img.shields.io/badge/engine-HTML5%20Canvas%20%2B%20Electron-47848f)
 ![Languages](https://img.shields.io/badge/languages-EN%20%C2%B7%20TR%20%C2%B7%20DE%20%C2%B7%20ES-555)
@@ -36,6 +36,7 @@ The campaign follows **Black Veil**, a crime network running drugs, weapons and 
 - **Doors and breaching.** Open, kick, wedge, pick the lock or blow the door with a C2 breach charge. Doors block both sight and sound.
 - **Rules of engagement scoring.** You score for arrests, rescues and evidence. You lose points for unauthorized force, civilian casualties and anything you leave behind.
 - **Loadouts and progression.** Earn credits and XP, then unlock weapons, attachments, armor, grenades, a shield, a taser, a beanbag shotgun and a recon drone in the Armory.
+- **Operation modes.** Replay any mission under different rules, from Lone Wolf to Escalation, plus a new Daily Operation every day.
 - **Four languages:** English, Türkçe, Deutsch, Español.
 
 ## Campaign
@@ -52,6 +53,19 @@ The campaign follows **Black Veil**, a crime network running drugs, weapons and 
 | 08 | Blackout | Blackridge Hotel | Classified |
 | 09 | The Network | Black Veil Data Center | Classified |
 | 10 | Zero Hour | Greybridge Financial Tower | Classified |
+
+## Game Modes
+
+Complete a mission once to unlock its alternate modes. Each mode has its own best score and pays out more.
+
+| Mode | Rules | Score |
+|---|---|---|
+| **Standard** | The full operation with your squad. | ×1.0 |
+| **Lone Wolf** | No squad. Every door and every arrest is on you. | ×1.4 |
+| **Time Critical** | Contain the scene within half the par time, or the operation fails. | ×1.3 |
+| **Hardcore** | Suspects react faster, aim better and surrender less. You take 80% more damage, carry no medkits and lose ghost markers. | ×1.6 |
+| **Escalation** | Armed reinforcements storm the building in 3 waves until the scene is contained. | ×1.5 |
+| **Daily Operation** | One seeded operation per day: the same mission, suspect layout and rule set for everyone. Resets at midnight. | base +0.25 |
 
 ## Controls
 
@@ -108,7 +122,7 @@ The campaign follows **Black Veil**, a crime network running drugs, weapons and 
 
 ### Play (Windows)
 
-1. Download `TacticalResponse-v0.5.0-win64.zip` from [Releases](https://github.com/tearquiet2-sys/tactical-response/releases/latest).
+1. Download `TacticalResponse-v0.6.0-win64.zip` from [Releases](https://github.com/tearquiet2-sys/tactical-response/releases/latest).
 2. Extract it anywhere.
 3. Run **`Tactical Response.exe`**.
 
@@ -141,6 +155,7 @@ src/
 └── js/
     ├── data.js          Weapon / equipment / operator / enemy data
     ├── missions.js      Mission data and map layouts
+    ├── modes.js         Operation modes and the seeded Daily Operation
     ├── map.js, door.js  Grid, rooms, collision, LOS raycasts, A* pathfinding, doors
     ├── character.js     Shared character logic
     ├── player.js        Player controller, weapons, interaction
@@ -163,6 +178,7 @@ src/
 - [x] Suspect and civilian AI, surrender and arrest
 - [x] Squad commands and breaching
 - [x] Missions 01–03, scoring, armory and progression
+- [x] Operation modes: Lone Wolf, Time Critical, Hardcore, Escalation, Daily Operation
 - [ ] Missions 04–10 (darkness, evidence, split team, alarms, dynamic events)
 - [ ] More maps, weapons and enemy types
 - [ ] Audio, animation and VFX polish

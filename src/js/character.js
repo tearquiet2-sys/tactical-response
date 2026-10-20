@@ -164,6 +164,8 @@
       info = info || {};
       this.hitFlash = 0.12;
       let d = dmg;
+      const md = this.game && this.game.mode;
+      if (md && md.dmgTaken && this.faction === 'police') d *= md.dmgTaken;
       if (this.armor > 0 && !info.ignoreArmor) {
         const absorbed = Math.min(this.armor, d * 0.55);
         this.armor -= absorbed * 1.1;

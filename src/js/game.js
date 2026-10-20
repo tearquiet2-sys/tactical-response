@@ -35,10 +35,12 @@
         neutralized: 0, suspectsKilledByTeam: 0
       };
       this.penaltyLog = [];
+      this.mode = this.hooks.mode || TR.Modes.resolve('standard', mission);
+      this.waveIdx = 0; this.timeWarn = 0; this.containedT = null;
       this.spawnAll();
       this.setupObjectives();
       if (this.hooks.snapshot) this.restore(this.hooks.snapshot);
-      this.tutorial = mission.tutorial && TR.Save.data.settings.hints && !this.hooks.snapshot ? new TR.Tutorial(this) : null;
+      this.tutorial = mission.tutorial && this.mode.id === 'standard' && TR.Save.data.settings.hints && !this.hooks.snapshot ? new TR.Tutorial(this) : null;
       this.camera.x = this.player.x; this.camera.y = this.player.y;
       this.vision = [];
       this.fogCanvas = document.createElement('canvas');
@@ -48,13 +50,20 @@
 
     // ------------------------------------------------------------ spawning
     spawnAll() {
+      // the daily operation uses a fixed seed so every player gets the same layout
+      const realRandom = Math.random;
+      if (this.mode.seed) Math.random = TR.Modes.mulberry32(this.mode.seed);
+      try { this.spawnAllInner(); } finally { Math.random = realRandom; }
+    }
+    spawnAllInner() {
       const sp = this.map.spawns;
       const m = this.mission;
       const ps = sp.player[0];
       this.player = new TR.Player(this, ps.x, ps.y, this.loadout);
       this.addChar(this.player);
       this.police.push(this.player);
-      D.operators.forEach((op, i) => {
+      if (this.mode.noMedkits) this.player.medkits = 0;
+      if (!this.mode.noSquad) D.operators.forEach((op, i) => {
         const p = sp.player[i + 1] || ps;
         const o = new TR.Officer(this, p.x, p.y, op, i);
         this.officers.push(o); this.police.push(o); this.addChar(o);
@@ -105,7 +114,14 @@
       this.extractZone = sp.extract[0];
     }
     addChar(c) { this.characters.push(c); }
-    addNpc(c) { this.characters.push(c); this.npcs.push(c); if (c.kind === 'enemy') this.enemies.push(c); else this.civilians.push(c); }
+    addNpc(c) {
+      if (c.kind === 'enemy' && this.mode && this.mode.enemy) {
+        // hardcore: a per-suspect copy of the type data so the shared table stays untouched
+        const e = this.mode.enemy, T = c.T;
+        c.T = Object.assign({}, T, { accuracy: T.accuracy * e.accuracy, comply: Math.max(0.03, T.comply + e.comply), reaction: T.reaction.map((r) => r * e.reaction) });
+      }
+      this.characters.push(c); this.npcs.push(c); if (c.kind === 'enemy') this.enemies.push(c); else this.civilians.push(c);
+    }
     addItem(x, y, kind, label) {
       const it = { x, y, kind, label: label || TR.t('ev.' + kind), collected: false, discovered: false, rot: Math.random() * 6.28 };
       this.items.push(it); return it;
@@ -621,6 +637,8 @@
       if (this.hintText) { this.hintText.t -= sdt; if (this.hintText.t <= 0) this.hintText = null; }
       if (this.hurtFlash > 0) this.hurtFlash = Math.max(0, this.hurtFlash - sdt * 1.2);
       if (!this.extractReady) this.checkObjectiveProgress();
+      this.updateMode(sdt);
+      if (this.over) return;
       // camera
       const p = this.player;
       const look = p.aiming ? 0.42 : 0.2;
@@ -633,6 +651,45 @@
       const s = this.shakeAmt * this.shakeAmt * 14;
       this.camera.sx = U.rand(-s, s); this.camera.sy = U.rand(-s, s);
       TR.Audio.listener.x = p.x; TR.Audio.listener.y = p.y;
+    }
+    // ------------------------------------------------------------ operation mode rules
+    updateMode(dt) {
+      const md = this.mode;
+      if (md.timeLimit) {
+        if (this.extractReady) {
+          if (this.containedT == null) { this.containedT = this.time; this.radio(null, TR.t('radio.contained'), true); }
+        } else {
+          const left = md.timeLimit - this.time;
+          if (left <= 60 && this.timeWarn < 1) { this.timeWarn = 1; this.radio(null, TR.t('radio.time60'), true); }
+          if (left <= 30 && this.timeWarn < 2) { this.timeWarn = 2; this.radio(null, TR.t('radio.time30'), true); TR.Audio.play('alarm'); }
+          if (left <= 0) { this.end(false, TR.t('reason.time')); return; }
+        }
+      }
+      if (md.waves && !this.extractReady) {
+        const w = md.waves[this.waveIdx];
+        if (w && this.time >= w.t) { this.waveIdx++; this.spawnWave(w.n); }
+      }
+    }
+    spawnWave(n) {
+      const sp = this.map.spawns, p = this.player;
+      const vs = this.viewers();
+      const hidden = (q) => !vs.some((v) => TR.Vision.sees(this.map, v, { x: q.x, y: q.y, r: 0.3 }));
+      const free = (q) => !this.characters.some((c) => c.alive && U.dist(c.x, c.y, q.x, q.y) < 1);
+      let cands = U.shuffle(sp.enemy.slice()).filter((q) => U.dist(q.x, q.y, p.x, p.y) > 9 && hidden(q) && free(q));
+      if (cands.length < n) cands = cands.concat(U.shuffle(sp.enemy.slice()).filter((q) => free(q) && !cands.includes(q)));
+      const types = ['aggressive', 'aggressive', 'tactical', 'tactical', 'tactical'];
+      for (let i = 0; i < n && i < cands.length; i++) {
+        const e = new TR.Suspect(this, cands[i].x, cands[i].y, U.pick(types));
+        e.fake = false;
+        this.addNpc(e);
+        // they come in hunting: treat it as if they heard the team
+        e.hear({ x: p.x, y: p.y, radius: 99, type: 'gunshot', src: p });
+      }
+      this.radio(null, TR.t('radio.wave', this.waveIdx, this.mode.waves.length), true);
+      this.feedPush(TR.t('hud.wave', this.waveIdx, this.mode.waves.length), '#e0564a');
+      TR.Audio.play('alarm');
+      this.extractReady = false;
+      const ex = this.objectives.find((o) => o.id === 'extract'); if (ex) ex.hidden = true;
     }
     separate() {
       const cs = this.characters;
@@ -702,7 +759,7 @@
       const chr = (c) => ({ x: +c.x.toFixed(3), y: +c.y.toFixed(3), a: +c.angle.toFixed(3), hp: c.hp, ar: c.armor, al: c.alive });
       const p = this.player;
       return {
-        v: 1, mission: this.mission.id, loadout: this.loadout, time: this.time, stats: this.stats, pen: this.penaltyLog,
+        v: 1, mission: this.mission.id, mode: this.mode.id, wave: this.waveIdx, tw: this.timeWarn, loadout: this.loadout, time: this.time, stats: this.stats, pen: this.penaltyLog,
         cleared: Array.from(this.clearedRooms), extractReady: this.extractReady, revealT: this.revealT,
         player: Object.assign(chr(p), { slots: p.slots.map((w) => [w.ammo, w.reserve]), slot: p.slot, gren: p.grenades.map((g) => g.count), ch: p.charges, md: p.medkits, wd: p.wedges, du: !!p.droneUsed && !p.drone, dr: p.drone ? [p.drone.x, p.drone.y, p.drone.battery] : null }),
         officers: this.officers.map((o) => Object.assign(chr(o), { fl: o.flash, ch: o.charges, am: [o.weapon.ammo, o.weapon.reserve] })),
@@ -720,6 +777,7 @@
     restore(s) {
       const apply = (c, d) => { c.x = d.x; c.y = d.y; c.angle = d.a; c.hp = d.hp; c.armor = d.ar; c.alive = d.al; c.body = !d.al; };
       this.time = s.time; Object.assign(this.stats, s.stats); this.penaltyLog = s.pen || [];
+      this.waveIdx = s.wave || 0; this.timeWarn = s.tw || 0;
       this.clearedRooms = new Set(s.cleared || []); this.revealT = s.revealT || 0;
       const p = this.player, sp = s.player;
       apply(p, sp);
@@ -871,14 +929,17 @@
       if (success && this.time < this.mission.parTime) add(TR.t('sl.par'), Math.round((this.mission.parTime - this.time) * 0.5));
       this.penaltyLog.forEach((p) => lines.push({ label: p.label, value: p.value, penalty: true }));
       if (evLeft) lines.push({ label: TR.t('sl.evLeft', evLeft), value: evLeft * P.evidenceLeft, penalty: true });
-      const score = Math.max(0, lines.reduce((s, l) => s + l.value, 0));
+      const base = Math.max(0, lines.reduce((s, l) => s + l.value, 0));
+      const mult = this.mode.mult || 1;
+      if (success && mult > 1 && base > 0) lines.push({ label: TR.t('sl.mode', TR.Modes.label(this.mode), mult), value: Math.round(base * (mult - 1)) });
+      const score = success ? Math.round(base * mult) : base;
       const maxScore = X.complete + this.civilians.filter((c) => !c.vip).length * X.civilian + (this.vip ? X.hostage : 0) + this.enemies.length * X.arrest + evTot * X.evidence + X.noDamage;
-      const ratio = score / Math.max(1, maxScore);
+      const ratio = base / Math.max(1, maxScore);
       const grade = !success ? 'F' : ratio > 0.92 ? 'S' : ratio > 0.8 ? 'A' : ratio > 0.65 ? 'B' : ratio > 0.5 ? 'C' : 'D';
       const bonus = success ? Math.round(score * 0.2 / 50) * 50 : 0;
-      const reward = success ? this.mission.reward : 0;
+      const reward = success ? Math.round(this.mission.reward * mult / 50) * 50 : 0;
       return {
-        mission: this.mission, success, reason, grade, score, xp: Math.round(score * (success ? 1 : 0.3)), reward, bonus, credits: reward + bonus, lines,
+        mission: this.mission, mode: this.mode, success, reason, grade, score, xp: Math.round(score * (success ? 1 : 0.3)), reward, bonus, credits: reward + bonus, lines,
         time: this.time,
         table: {
           civilians: civSecured + '/' + this.civilians.filter((c) => !c.vip).length,
@@ -920,7 +981,7 @@
       for (const c of this.npcs) {
         if (!c.alive) continue;
         if (c.visibleToTeam) c.draw(g);
-        else if (c.ghost && this.time - c.lastSeenT < 5) this.drawGhost(g, c);
+        else if (c.ghost && this.time - c.lastSeenT < 5 && !this.mode.noGhosts) this.drawGhost(g, c);
       }
       for (const c of this.officers) if (c.alive) c.draw(g);
       if (this.player.alive) this.player.draw(g); else this.player.draw(g);

@@ -31,6 +31,35 @@
       g.drawImage(this._vig.c, 0, 0, W, H);
     },
 
+    // operation mode status (top centre, below the room / hostage / CCTV lines): countdown and reinforcement waves
+    drawMode(g, game, W) {
+      const md = game.mode;
+      let y = 128;
+      if (md.timeLimit) {
+        const done = game.containedT != null;
+        const left = Math.max(0, md.timeLimit - (done ? game.containedT : game.time));
+        const urgent = !done && left <= 30;
+        g.fillStyle = 'rgba(0,0,0,0.6)'; g.fillRect(W / 2 - 110, y - 14, 220, 44);
+        g.fillStyle = done ? C.green : urgent ? C.red : C.amber; g.fillRect(W / 2 - 110, y - 14, 220, 2);
+        g.font = F('600', 10); g.fillStyle = C.dim; g.fillText(done ? t('hud.contained') : t('hud.timeLeft'), W / 2, y);
+        g.font = F('700', 22);
+        g.fillStyle = done ? C.green : urgent && Math.floor(game.time * 4) % 2 ? '#fff' : urgent ? C.red : C.text;
+        g.fillText(U.fmtTime(left), W / 2, y + 23);
+        y += 54;
+      }
+      if (md.waves) {
+        const n = md.waves.length, next = md.waves[game.waveIdx];
+        let txt = t('hud.wave', game.waveIdx, n);
+        if (next && !game.extractReady) txt += '  ·  ' + t('hud.nextWave', U.fmtTime(Math.max(0, next.t - game.time)));
+        else if (!next) txt += '  ·  ' + t('hud.wavesDone');
+        g.font = F('700', 12);
+        const tw = g.measureText(txt).width + 24;
+        g.fillStyle = 'rgba(0,0,0,0.6)'; g.fillRect(W / 2 - tw / 2, y - 14, tw, 22);
+        g.fillStyle = next && next.t - game.time < 10 && !game.extractReady ? C.red : C.amber;
+        g.fillText(txt, W / 2, y + 1);
+      }
+    },
+
     draw(g, game, W, H) {
       const p = game.player;
       g.textBaseline = 'alphabetic';
@@ -42,7 +71,7 @@
       let x = 16, y = 16;
       this.panel(g, x, y, 250, 26 + game.officers.length * 40);
       g.font = F('600', 11); g.fillStyle = C.dim; g.textAlign = 'left';
-      g.fillText(t('hud.team'), x + 14, y + 17);
+      g.fillText(game.officers.length ? t('hud.team') : t('hud.solo'), x + 14, y + 17);
       game.officers.forEach((o, i) => {
         const yy = y + 28 + i * 40;
         g.fillStyle = o.op.color; g.fillRect(x + 14, yy + 2, 4, 30);
@@ -105,6 +134,7 @@
         g.fillStyle = C.red; g.fillRect(W / 2 - 156, 80, 312 * k, 4);
         g.font = F('700', 12); g.fillStyle = (Math.floor(game.time * 4) % 2) ? C.red : '#fff'; g.fillText(t('hud.hostage'), W / 2, 76);
       }
+      this.drawMode(g, game, W);
       if (game.revealT > 0) { g.font = F('700', 12); g.fillStyle = C.blue; g.fillText('● ' + t('hud.cctv') + '  ' + game.revealT.toFixed(1) + 's', W / 2, 100); }
       if (p.mirror) { g.font = F('700', 12); g.fillStyle = C.blue; g.fillText(t('hud.mirror'), W / 2, 100); }
       g.font = F('600', 10); g.fillStyle = 'rgba(139,147,155,0.7)'; g.fillText('[M] ' + t('hud.map'), W / 2, H - 8);

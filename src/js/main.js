@@ -48,21 +48,26 @@
     autosave() {
       const g = this.game;
       if (this.state !== 'game' || !g || g.over || !g.player.alive) return;
-      try { S.saveResume(g.serialize()); } catch (e) { console.error(e); }
+      try { const snap = g.serialize(); if (g.mode.dayKey) snap.dayKey = g.mode.dayKey; S.saveResume(snap); } catch (e) { console.error(e); }
     },
     resumeMission() {
       const snap = S.resume;
       if (!snap) return;
-      this.startMission(snap.mission, snap);
+      this.startMission(snap.mission, snap, snap.mode || 'standard');
     },
-    startMission(id, snapshot) {
+    startMission(id, snapshot, modeId) {
       const m = TR.Missions.find((q) => q.id === id);
       if (!m || !m.playable) return;
+      modeId = modeId || 'standard';
+      // a daily snapshot from a previous day can't be resumed as today's daily
+      if (snapshot && modeId === 'daily' && snapshot.dayKey && snapshot.dayKey !== TR.Modes.dayKey()) { snapshot = null; modeId = 'standard'; }
+      const mode = TR.Modes.resolve(modeId, m);
+      this.modeId = modeId;
       TR.Audio.ensure();
       TR.Voice.stop();
       this.paused = false;
       this.state = 'deploy';
-      TR.UI.show('deploy', { m, resume: !!snapshot });
+      TR.UI.show('deploy', { m, mode, resume: !!snapshot });
       if (!snapshot) S.clearResume();
       setTimeout(() => {
         const lo = snapshot ? snapshot.loadout : JSON.parse(JSON.stringify(S.data.loadout));
@@ -70,11 +75,11 @@
         if (!S.owns(lo.primary)) lo.primary = 'ar15';
         if (!S.owns(lo.secondary)) lo.secondary = 'px9';
         try {
-          this.game = new TR.Game(m, lo, { onEnd: (r) => this.onEnd(r), onAutosave: () => this.autosave(), snapshot });
+          this.game = new TR.Game(m, lo, { onEnd: (r) => this.onEnd(r), onAutosave: () => this.autosave(), snapshot, mode });
         } catch (e) {
           // a broken snapshot must never block the player: start the mission fresh
           console.error(e); S.clearResume();
-          this.game = new TR.Game(m, lo, { onEnd: (r) => this.onEnd(r), onAutosave: () => this.autosave() });
+          this.game = new TR.Game(m, lo, { onEnd: (r) => this.onEnd(r), onAutosave: () => this.autosave(), mode });
         }
         TR.UI.hide();
         this.state = 'game';
@@ -95,8 +100,14 @@
       d.xp += r.xp;
       if (r.success) {
         d.credits += r.credits;
+        const rec = { score: r.score, grade: r.grade, time: Math.round(r.time) };
+        // campaign record = standard runs; any successful mode still unlocks the next mission
         const prev = d.completed[r.mission.id];
-        if (!prev || prev.score < r.score) d.completed[r.mission.id] = { score: r.score, grade: r.grade, time: Math.round(r.time) };
+        if (!prev || (r.mode.id === 'standard' && prev.score < r.score)) d.completed[r.mission.id] = rec;
+        d.modeBest = d.modeBest || {};
+        const key = TR.Modes.bestKey(r.mission.id, r.mode.id === 'daily' ? r.mode.base : r.mode.id);
+        if (!d.modeBest[key] || d.modeBest[key].score < r.score) d.modeBest[key] = rec;
+        if (r.mode.id === 'daily' && (!d.daily || d.daily.key !== r.mode.dayKey || d.daily.score < r.score)) d.daily = Object.assign({ key: r.mode.dayKey }, rec);
         d.stats.missions++;
       }
       d.stats.arrests += r.table.arrested;
@@ -109,7 +120,7 @@
         this.state = 'result';
         TR.Audio.stopAmbience();
         TR.Audio.play(r.success ? 'objective' : 'alarm');
-        TR.UI.selMission = r.success ? Math.min(r.mission.id + 1, TR.Missions.filter((m) => m.playable).length) : r.mission.id;
+        TR.UI.selMission = r.success && r.mode.id === 'standard' ? Math.min(r.mission.id + 1, TR.Missions.filter((m) => m.playable).length) : r.mission.id;
         TR.UI.show('result', r);
       }, 1400);
     },
